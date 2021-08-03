@@ -18,10 +18,18 @@ server.get('/weather', (req, res) => {
     console.log(lat, lon, cityName);
     const result = data.find(item => item.lat === lat && item.lon === lon &&  item.city_name.toLocaleLowerCase() === cityName ? item : '');
 
-    result ? res.send(createForcastObj(result)) : res.status(500).send('Something went wrong!');
+    result ? res.send(createForcastObj(result)) : res.send(creatErrorObj('Something went wrong.', 500));
 
 });
 
+
+server.get('*', (req, res) => {
+    res.send(creatErrorObj('Something went wrong.', 500));
+});
+
+const creatErrorObj = (errMsg, status) =>{
+    return {error: errMsg, status: status};
+};
 
 const createForcastObj = (weatherObj) =>{
     const forcastObjList = [];
