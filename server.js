@@ -4,6 +4,7 @@ require('dotenv').config();
 const cors = require('cors');
 const express = require('express');
 const data = require('./data/weather.json');
+const axios = require('axios');
 const server = express();
 const PORT = process.env.PORT;
 server.use(cors());
@@ -14,26 +15,37 @@ server.get('/weather', (req, res) => {
     const lat = Number(req.query.lat);
     const lon = Number(req.query.lon);
     const cityName = req.query.searchQuery.toLocaleLowerCase();
-    
-    console.log(lat, lon, cityName);
-    const result = data.find(item => item.lat === lat && item.lon === lon &&  item.city_name.toLocaleLowerCase() === cityName ? item : '');
+    const URL = `${process.env.WATHER_API_URL}?city=${cityName}&lat=${lat}&lon=${lon}&key=${process.env.WEATHER_API_KEY}`; 
 
-    result ? res.send(createForcastObj(result)) : res.send(creatErrorObj('Something went wrong.', 500));
+    axios
+    .get(URL)
+    .then( result =>{
+        res.send(createForcastObj(result.data));
+    })
+    .catch(err => {
+        console,log(err);
+        res.send(err)
+    });
 
 });
 
+// http://localhost:3001/movies?cityName=ammn
+server.get('/movies',(req, res)=> {
+    const cityName = req.query.cityName;
 
-server.get('*', (req, res) => {
-    res.send(creatErrorObj('Something went wrong.', 500));
+    const URL = `${process.env.MOVIE_API_URL}?api_key=${process.env.MOVIE_API_KEY}&query=${cityName}`;
+    axios.get(URL)
+    .then( result =>{
+        res.send(creatMoviesObjList(result.data));
+    })
+    .catch(err => {
+        res.send(err)
+    });
 });
 
-const creatErrorObj = (errMsg, status) =>{
-    return {error: errMsg, status: status};
-};
-
-const createForcastObj = (weatherObj) =>{
+const createForcastObj = weatherObjList =>{
     const forcastObjList = [];
-    weatherObj.data.map( item => {
+    weatherObjList.data.map( item => {
         const description = `Low of ${item.low_temp}, high of ${item.high_temp} with ${item.weather.description}`;
         const date = item.datetime;
         forcastObjList.push(new Forcast(date, description));
@@ -41,6 +53,28 @@ const createForcastObj = (weatherObj) =>{
     return forcastObjList;
 };
 
+const creatMoviesObjList = moviesObjList => {
+    const newMoviesObjList = [];
+    moviesObjList.results.map(movieObj => {
+        const title = movieObj.title;
+        const overview = movieObj.overview;
+        const averageVotes = movieObj.vote_average;
+        const totalVotes = movieObj.vote_count;
+        const popularity = movieObj.popularity;
+        const releasedOn = movieObj.release_date;
+        const imageUrl = movieObj.poster_path && `https://image.tmdb.org/t/p/w500${movieObj.poster_path}`;
+        newMoviesObjList.push(new Movies(title, overview, averageVotes, totalVotes, imageUrl, popularity, releasedOn));
+    });
+
+    return newMoviesObjList;
+} 
+
+// class Erorr {
+//     constructor(status, errMsg){
+//         this.status = status;
+//         this.errMsg = errMsg;
+//     }
+// }
 
 class Forcast {
     constructor(date = '', description =''){
@@ -49,6 +83,17 @@ class Forcast {
     }
 }
 
+class Movies {
+    constructor(title, overview, averageVotes, totalVotes, imageUrl, popularity, releasedOn){
+        this.title = title;
+        this.overview = overview;
+        this.average_votes= averageVotes;
+        this.total_votes = totalVotes;
+        this.image_url = imageUrl;
+        this.popularity = popularity;
+        this.released_on = releasedOn;
+    }
+}
 
 server.listen(PORT, () => {
     console.log(`I'm listening on port:${PORT}`);
